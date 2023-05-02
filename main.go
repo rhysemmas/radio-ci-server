@@ -34,16 +34,18 @@ func slashHandler(w http.ResponseWriter, r *http.Request) {
 	payload, err := github.ValidatePayload(r, []byte("your_mum"))
 	if err != nil {
 		log.Printf("error validating: %v", err)
+		return
 	}
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
 		log.Printf("error parsing: %v", err)
+		return
 	}
 
 	switch event := event.(type) {
-	case *github.PushEvent:
-		handleGitHubPushEvent(event)
+	case *github.CreateEvent:
+		handleGitHubCreateEvent(event)
 	}
 }
 
@@ -55,10 +57,10 @@ func slashHandler(w http.ResponseWriter, r *http.Request) {
 //   - how to detect what port arduino is on
 //   - how to flash, invoke PIO using os.Exec?
 
-func handleGitHubPushEvent(event *github.PushEvent) {
-	if *event.Ref == "refs/heads/main" {
+func handleGitHubCreateEvent(event *github.CreateEvent) {
+	if *event.RefType == "tag" {
 		fmt.Println(event)
 	} else {
-		log.Printf("event not for main branch, got ref: %v", *event.Ref)
+		log.Printf("event not a tag, got ref: %v", *event.Ref)
 	}
 }
