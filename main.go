@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,7 +22,7 @@ func main() {
 		log.Fatal("TOKEN env var not set")
 	}
 
-	h := NewHandler(payloadToken)
+	h := newHandler(payloadToken)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", h.slashHandler)
@@ -38,31 +36,18 @@ func main() {
 	log.Println(server.ListenAndServe())
 }
 
-type Handler struct {
-	Token  []byte
-	Writer Writer
+type handler struct {
+	token []byte
 }
 
-type Writer struct{}
-
-func (w Writer) Write(data []byte) (n int, err error) {
-	bytesReader := bytes.NewReader(data)
-	scanner := bufio.NewScanner(bytesReader)
-	for scanner.Scan() {
-		log.Print(scanner.Text())
-	}
-
-	return len(data), nil
+func newHandler(token string) handler {
+	return handler{token: []byte(token)}
 }
 
-func NewHandler(token string) Handler {
-	return Handler{Token: []byte(token)}
-}
-
-func (h *Handler) slashHandler(w http.ResponseWriter, r *http.Request) {
+func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
-	payload, err := github.ValidatePayload(r, h.Token)
+	payload, err := github.ValidatePayload(r, h.token)
 	if err != nil {
 		log.Printf("error validating: %v", err)
 		return
@@ -80,7 +65,7 @@ func (h *Handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleGitHubCreateEvent(event *github.CreateEvent) {
+func (h *handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 	if *event.RefType == "tag" {
 		log.Printf("downloading version %v of arduino-lora", *event.Ref)
 		if err := h.gitCloneLatestCode(); err != nil {
@@ -101,10 +86,9 @@ func (h *Handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 	}
 }
 
-func (h *Handler) gitCloneLatestCode() error {
+func (h *handler) gitCloneLatestCode() error {
 	_, err := git.PlainClone("/tmp/arduino-lora", false, &git.CloneOptions{
-		URL:      "https://github.com/rhysemmas/arduino-lora",
-		Progress: h.Writer,
+		URL: "https://github.com/rhysemmas/arduino-lora",
 	})
 
 	if err != nil {
@@ -114,7 +98,7 @@ func (h *Handler) gitCloneLatestCode() error {
 	return nil
 }
 
-func (h *Handler) flashArduino() error {
+func (h *handler) flashArduino() error {
 	cmd := exec.Command("pio", "run", "-t", "upload")
 	cmd.Dir = "/tmp/arduino-lora"
 
@@ -125,7 +109,7 @@ func (h *Handler) flashArduino() error {
 	return nil
 }
 
-func (h *Handler) cleanupTmp() error {
+func (h *handler) cleanupTmp() error {
 	if err := os.RemoveAll("/tmp/arduino-lora"); err != nil {
 		return fmt.Errorf("error calling os.Remove: %v", err)
 	}
