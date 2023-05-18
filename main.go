@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 
+	git "github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v52/github"
 )
 
@@ -49,18 +51,54 @@ func slashHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO list
-// * clone latest code from github after receiving push to main branch
-//   - how to git clone
-//   - how to copy code into right directory
-// * flash code to arduino
-//   - how to detect what port arduino is on
-//   - how to flash, invoke PIO using os.Exec?
-
 func handleGitHubCreateEvent(event *github.CreateEvent) {
 	if *event.RefType == "tag" {
-		fmt.Println(event)
+		log.Printf("downloading version %v of arduino-lora", event.Ref)
+
+		if err := gitCloneLatestCode(); err != nil {
+			log.Printf("error cloning latest code: %v", err)
+		}
+
+		if err := flashArduino(); err != nil {
+			log.Printf("error flashing arduino: %v", err)
+		}
+
+		if err := cleanupTmp(); err != nil {
+			log.Printf("error cleaning up /tmp: %v", err)
+		}
 	} else {
 		log.Printf("event not a tag, got ref: %v", *event.Ref)
 	}
+}
+
+func gitCloneLatestCode() error {
+	_, err := git.PlainClone("/tmp/arduino-lora", false, &git.CloneOptions{
+		URL:      "https://github.com/rhysemmas/arduino-lora",
+		Progress: os.Stdout,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error cloning git repository: %v", err)
+	}
+
+	return nil
+}
+
+func flashArduino() error {
+	cmd := exec.Command("pio", "run", "-t", "upload")
+	cmd.Dir = "/tmp/arduino-lora"
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("error execing command: %v", err)
+	}
+
+	return nil
+}
+
+func cleanupTmp() error {
+	if err := os.Remove("/tmp/arduino-lora"); err != nil {
+		return fmt.Errorf("error calling os.Remove: %v", err)
+	}
+
+	return nil
 }
