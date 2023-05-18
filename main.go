@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,7 +24,7 @@ func main() {
 		log.Fatal("TOKEN env var not set")
 	}
 
-	h := newHandler(payloadToken)
+	h := NewHandler(payloadToken)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", h.slashHandler)
@@ -36,59 +38,75 @@ func main() {
 	log.Println(server.ListenAndServe())
 }
 
-type handler struct {
-	token []byte
+type Handler struct {
+	token  []byte
+	logger Logger
 }
 
-func newHandler(token string) handler {
-	return handler{token: []byte(token)}
+func NewHandler(token string) Handler {
+	return Handler{token: []byte(token)}
 }
 
-func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
+type Logger struct {
+	log.Logger
+}
+
+func (l *Logger) Write(data []byte) (n int, err error) {
+	bytesReader := bytes.NewReader(data)
+	scanner := bufio.NewScanner(bytesReader)
+	for scanner.Scan() {
+		l.Print(scanner.Text())
+	}
+
+	return len(data), nil
+}
+
+func (h *Handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	payload, err := github.ValidatePayload(r, h.token)
 	if err != nil {
-		log.Printf("error validating: %v", err)
+		h.logger.Printf("error validating: %v", err)
 		return
 	}
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		log.Printf("error parsing: %v", err)
+		h.logger.Printf("error parsing: %v", err)
 		return
 	}
 
 	switch event := event.(type) {
 	case *github.CreateEvent:
-		handleGitHubCreateEvent(event)
+		h.handleGitHubCreateEvent(event)
 	}
 }
 
-func handleGitHubCreateEvent(event *github.CreateEvent) {
+func (h *Handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 	if *event.RefType == "tag" {
 		log.Printf("downloading version %v of arduino-lora", *event.Ref)
-
-		if err := gitCloneLatestCode(); err != nil {
-			log.Printf("error cloning latest code: %v", err)
+		if err := h.gitCloneLatestCode(); err != nil {
+			h.logger.Printf("error cloning latest code: %v", err)
 		}
 
-		if err := flashArduino(); err != nil {
-			log.Printf("error flashing arduino: %v", err)
+		log.Printf("flashing arduino")
+		if err := h.flashArduino(); err != nil {
+			h.logger.Printf("error flashing arduino: %v", err)
 		}
 
-		if err := cleanupTmp(); err != nil {
-			log.Printf("error cleaning up /tmp: %v", err)
+		log.Printf("cleaning up downloaded files")
+		if err := h.cleanupTmp(); err != nil {
+			h.logger.Printf("error cleaning up /tmp: %v", err)
 		}
 	} else {
-		log.Printf("event not a tag, got ref: %v", *event.Ref)
+		h.logger.Printf("event not a tag, got ref: %v", *event.Ref)
 	}
 }
 
-func gitCloneLatestCode() error {
+func (h *Handler) gitCloneLatestCode() error {
 	_, err := git.PlainClone("/tmp/arduino-lora", false, &git.CloneOptions{
 		URL:      "https://github.com/rhysemmas/arduino-lora",
-		Progress: log.Writer(),
+		Progress: &h.logger,
 	})
 
 	if err != nil {
@@ -98,7 +116,7 @@ func gitCloneLatestCode() error {
 	return nil
 }
 
-func flashArduino() error {
+func (h *Handler) flashArduino() error {
 	cmd := exec.Command("pio", "run", "-t", "upload")
 	cmd.Dir = "/tmp/arduino-lora"
 
@@ -109,7 +127,7 @@ func flashArduino() error {
 	return nil
 }
 
-func cleanupTmp() error {
+func (h *Handler) cleanupTmp() error {
 	if err := os.RemoveAll("/tmp/arduino-lora"); err != nil {
 		return fmt.Errorf("error calling os.Remove: %v", err)
 	}
