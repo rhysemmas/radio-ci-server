@@ -72,11 +72,11 @@ func (h *handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 			log.Printf("error cloning latest code: %v", err)
 		}
 
-		log.Printf("flashing arduino...")
+		log.Print("flashing arduino...")
 		if err := flashArduino(); err != nil {
 			log.Printf("error flashing arduino: %v", err)
 		} else {
-			log.Printf("done!")
+			log.Print("done!")
 		}
 
 		log.Printf("cleaning up downloaded files")
