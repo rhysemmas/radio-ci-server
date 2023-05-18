@@ -1,0 +1,10 @@
+ [Unit]
+ Description=Radio CI Server
+ After=multi-user.target
+
+ [Service]
+ Type=idle
+ ExecStart=TOKEN=<your_token_here> /usr/local/bin/radio-ci-server
+
+ [Install]
+ WantedBy=multi-user.target
