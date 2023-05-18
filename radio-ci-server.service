@@ -4,7 +4,8 @@
 
  [Service]
  Type=idle
- ExecStart=TOKEN=<your_token_here> /usr/local/bin/radio-ci-server
+ Environment="TOKEN=<your_token_here>"
+ ExecStart=/usr/local/bin/radio-ci-server
 
  [Install]
  WantedBy=multi-user.target

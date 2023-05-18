@@ -11,8 +11,8 @@ install: build
 	@echo "!!! Remember to update your token in the systemd unit !!!"
 	@echo ""
 	@echo "Then enable your service with: "
-	@echo "systemctl daemon-reload"
-	@echo "systemctl enable radio-ci-server.service"
+	@echo "sudo systemctl daemon-reload"
+	@echo "sudo systemctl enable radio-ci-server.service"
 	@echo "--------------------------------------------------"
 	@echo ""
 
