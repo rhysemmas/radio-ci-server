@@ -2,10 +2,10 @@
 
 install: build
 	chmod 0777 bin/radio-ci-server
-	sudo mv bin/radio-ci-server /usr/local/bin/
+	sudo cp bin/radio-ci-server /usr/local/bin/
 
 	chmod 0644 radio-ci-server.service
-	sudo mv radio-ci-server.service /lib/systemd/system/
+	sudo cp radio-ci-server.service /lib/systemd/system/
 	@echo "Remember to update your token in the systemd unit!"
 	@echo "Then enable your service with: "
 	@echo "systemctl daemon-reload"
