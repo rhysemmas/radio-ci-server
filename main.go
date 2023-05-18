@@ -39,40 +39,38 @@ func main() {
 }
 
 type Handler struct {
-	token  []byte
-	logger Logger
+	Token  []byte
+	Writer Writer
 }
 
-func NewHandler(token string) Handler {
-	return Handler{token: []byte(token)}
-}
+type Writer struct{}
 
-type Logger struct {
-	log.Logger
-}
-
-func (l *Logger) Write(data []byte) (n int, err error) {
+func (w Writer) Write(data []byte) (n int, err error) {
 	bytesReader := bytes.NewReader(data)
 	scanner := bufio.NewScanner(bytesReader)
 	for scanner.Scan() {
-		l.Print(scanner.Text())
+		log.Print(scanner.Text())
 	}
 
 	return len(data), nil
 }
 
+func NewHandler(token string) Handler {
+	return Handler{Token: []byte(token)}
+}
+
 func (h *Handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
-	payload, err := github.ValidatePayload(r, h.token)
+	payload, err := github.ValidatePayload(r, h.Token)
 	if err != nil {
-		h.logger.Printf("error validating: %v", err)
+		log.Printf("error validating: %v", err)
 		return
 	}
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		h.logger.Printf("error parsing: %v", err)
+		log.Printf("error parsing: %v", err)
 		return
 	}
 
@@ -86,27 +84,27 @@ func (h *Handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 	if *event.RefType == "tag" {
 		log.Printf("downloading version %v of arduino-lora", *event.Ref)
 		if err := h.gitCloneLatestCode(); err != nil {
-			h.logger.Printf("error cloning latest code: %v", err)
+			log.Printf("error cloning latest code: %v", err)
 		}
 
 		log.Printf("flashing arduino")
 		if err := h.flashArduino(); err != nil {
-			h.logger.Printf("error flashing arduino: %v", err)
+			log.Printf("error flashing arduino: %v", err)
 		}
 
 		log.Printf("cleaning up downloaded files")
 		if err := h.cleanupTmp(); err != nil {
-			h.logger.Printf("error cleaning up /tmp: %v", err)
+			log.Printf("error cleaning up /tmp: %v", err)
 		}
 	} else {
-		h.logger.Printf("event not a tag, got ref: %v", *event.Ref)
+		log.Printf("event not a tag, got ref: %v", *event.Ref)
 	}
 }
 
 func (h *Handler) gitCloneLatestCode() error {
 	_, err := git.PlainClone("/tmp/arduino-lora", false, &git.CloneOptions{
 		URL:      "https://github.com/rhysemmas/arduino-lora",
-		Progress: &h.logger,
+		Progress: h.Writer,
 	})
 
 	if err != nil {
