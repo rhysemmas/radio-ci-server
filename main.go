@@ -13,13 +13,19 @@ import (
 
 func main() {
 	port := os.Getenv("PORT")
-
 	if port == "" {
 		port = "8080"
 	}
 
+	payloadToken := os.Getenv("TOKEN")
+	if payloadToken == "" {
+		log.Fatal("TOKEN env var not set")
+	}
+
+	h := newHandler(payloadToken)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", slashHandler)
+	mux.HandleFunc("/", h.slashHandler)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", port),
@@ -30,10 +36,18 @@ func main() {
 	log.Println(server.ListenAndServe())
 }
 
-func slashHandler(w http.ResponseWriter, r *http.Request) {
+type handler struct {
+	token []byte
+}
+
+func newHandler(token string) handler {
+	return handler{token: []byte(token)}
+}
+
+func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
-	payload, err := github.ValidatePayload(r, []byte("your_mum"))
+	payload, err := github.ValidatePayload(r, h.token)
 	if err != nil {
 		log.Printf("error validating: %v", err)
 		return
