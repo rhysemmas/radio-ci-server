@@ -17,12 +17,12 @@ func main() {
 		port = "8080"
 	}
 
-	payloadToken := os.Getenv("TOKEN")
-	if payloadToken == "" {
+	token := os.Getenv("TOKEN")
+	if token == "" {
 		log.Fatal("TOKEN env var not set")
 	}
 
-	h := newHandler(payloadToken)
+	h := newHandler(token)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", h.slashHandler)
@@ -68,17 +68,19 @@ func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 	if *event.RefType == "tag" {
 		log.Printf("downloading version %v of arduino-lora", *event.Ref)
-		if err := h.gitCloneLatestCode(); err != nil {
+		if err := gitCloneLatestCode(); err != nil {
 			log.Printf("error cloning latest code: %v", err)
 		}
 
-		log.Printf("flashing arduino")
-		if err := h.flashArduino(); err != nil {
+		log.Printf("flashing arduino...")
+		if err := flashArduino(); err != nil {
 			log.Printf("error flashing arduino: %v", err)
+		} else {
+			log.Printf("done!")
 		}
 
 		log.Printf("cleaning up downloaded files")
-		if err := h.cleanupTmp(); err != nil {
+		if err := cleanupTmp(); err != nil {
 			log.Printf("error cleaning up /tmp: %v", err)
 		}
 	} else {
@@ -86,7 +88,7 @@ func (h *handler) handleGitHubCreateEvent(event *github.CreateEvent) {
 	}
 }
 
-func (h *handler) gitCloneLatestCode() error {
+func gitCloneLatestCode() error {
 	_, err := git.PlainClone("/tmp/arduino-lora", false, &git.CloneOptions{
 		URL: "https://github.com/rhysemmas/arduino-lora",
 	})
@@ -98,7 +100,7 @@ func (h *handler) gitCloneLatestCode() error {
 	return nil
 }
 
-func (h *handler) flashArduino() error {
+func flashArduino() error {
 	cmd := exec.Command("pio", "run", "-t", "upload")
 	cmd.Dir = "/tmp/arduino-lora"
 
@@ -109,7 +111,7 @@ func (h *handler) flashArduino() error {
 	return nil
 }
 
-func (h *handler) cleanupTmp() error {
+func cleanupTmp() error {
 	if err := os.RemoveAll("/tmp/arduino-lora"); err != nil {
 		return fmt.Errorf("error calling os.Remove: %v", err)
 	}
