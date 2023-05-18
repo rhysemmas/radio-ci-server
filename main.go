@@ -67,7 +67,7 @@ func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleGitHubCreateEvent(event *github.CreateEvent) {
 	if *event.RefType == "tag" {
-		log.Printf("downloading version %v of arduino-lora", event.Ref)
+		log.Printf("downloading version %v of arduino-lora", *event.Ref)
 
 		if err := gitCloneLatestCode(); err != nil {
 			log.Printf("error cloning latest code: %v", err)
@@ -88,7 +88,7 @@ func handleGitHubCreateEvent(event *github.CreateEvent) {
 func gitCloneLatestCode() error {
 	_, err := git.PlainClone("/tmp/arduino-lora", false, &git.CloneOptions{
 		URL:      "https://github.com/rhysemmas/arduino-lora",
-		Progress: os.Stdout,
+		Progress: log.Writer(),
 	})
 
 	if err != nil {
@@ -110,7 +110,7 @@ func flashArduino() error {
 }
 
 func cleanupTmp() error {
-	if err := os.Remove("/tmp/arduino-lora"); err != nil {
+	if err := os.RemoveAll("/tmp/arduino-lora"); err != nil {
 		return fmt.Errorf("error calling os.Remove: %v", err)
 	}
 
