@@ -6,10 +6,15 @@ install: build
 
 	chmod 0644 radio-ci-server.service
 	sudo cp radio-ci-server.service /lib/systemd/system/
-	@echo "Remember to update your token in the systemd unit!"
+	@echo ""
+	@echo "--------------------------------------------------"
+	@echo "!!! Remember to update your token in the systemd unit !!!"
+	@echo ""
 	@echo "Then enable your service with: "
 	@echo "systemctl daemon-reload"
 	@echo "systemctl enable radio-ci-server.service"
+	@echo "--------------------------------------------------"
+	@echo ""
 
 build: $(shell find . -iname '*.go')
 	go build -o bin/radio-ci-server main.go
