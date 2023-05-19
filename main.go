@@ -9,6 +9,7 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v52/github"
+	"github.com/karalabe/usb"
 )
 
 func main() {
@@ -77,7 +78,7 @@ func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 func (h *handler) handleGithubCreateEvent(event *github.CreateEvent) {
 	h.event = event
 
-	if err := h.updateArduinoWithTaggedCode(); err != nil {
+	if err := h.updateArduinosWithTaggedCode(); err != nil {
 		log.Printf("error updating arduino: %v", err)
 	}
 
@@ -87,7 +88,7 @@ func (h *handler) handleGithubCreateEvent(event *github.CreateEvent) {
 	}
 }
 
-func (h *handler) updateArduinoWithTaggedCode() error {
+func (h *handler) updateArduinosWithTaggedCode() error {
 	if *h.event.RefType != "tag" {
 		return fmt.Errorf("event not a tag, got ref: %v", *h.event.Ref)
 	}
@@ -97,8 +98,8 @@ func (h *handler) updateArduinoWithTaggedCode() error {
 		return fmt.Errorf("error downloading code: %v", err)
 	}
 
-	log.Print("flashing arduino...")
-	if err := h.flashArduino(); err != nil {
+	log.Print("flashing arduinos...")
+	if err := h.flashArduinos(); err != nil {
 		return fmt.Errorf("error flashing arduino: %v", err)
 	}
 	log.Print("done!")
@@ -132,15 +133,38 @@ func (h *handler) gitCloneAndCheckoutRef() error {
 	return nil
 }
 
-func (h *handler) flashArduino() error {
-	cmd := exec.Command("pio", "run", "-t", "upload")
-	cmd.Dir = h.workingDir
+func (h *handler) flashArduinos() error {
+	paths, err := h.findAllArduinoUnos()
+	if err != nil {
+		return fmt.Errorf("error finding arduinos: %v", err)
+	}
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("error execing command: %v", err)
+	for _, path := range paths {
+		cmd := exec.Command("pio", "run", "--upload-port", path, "-t", "upload")
+		cmd.Dir = h.workingDir
+
+		log.Printf("flashing arduino at path: %v", path)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("error execing command: %v", err)
+		}
 	}
 
 	return nil
+}
+
+func (h *handler) findAllArduinoUnos() ([]string, error) {
+	// Uno has Vendor ID: 0x2341, Product ID: 0x0001
+	devices, err := usb.Enumerate(0x2341, 0x0001)
+	if err != nil {
+		return []string{}, fmt.Errorf("error enumerating usb devices: %v", err)
+	}
+
+	var devicePaths []string
+	for _, device := range devices {
+		devicePaths = append(devicePaths, device.Path)
+	}
+
+	return devicePaths, nil
 }
 
 func (h *handler) cleanupDir() error {
