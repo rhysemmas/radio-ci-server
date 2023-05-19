@@ -79,7 +79,7 @@ func (h *handler) handleGithubCreateEvent(event *github.CreateEvent) {
 	h.event = event
 
 	if err := h.updateArduinosWithTaggedCode(); err != nil {
-		log.Printf("error updating arduino: %v", err)
+		log.Printf("error updating arduinos: %v", err)
 	}
 
 	log.Printf("cleaning up any downloaded files")
@@ -100,7 +100,7 @@ func (h *handler) updateArduinosWithTaggedCode() error {
 
 	log.Print("flashing arduinos...")
 	if err := h.flashArduinos(); err != nil {
-		return fmt.Errorf("error flashing arduino: %v", err)
+		return fmt.Errorf("error flashing arduinos: %v", err)
 	}
 	log.Print("done!")
 
@@ -155,8 +155,8 @@ func (h *handler) flashArduinos() error {
 func (h *handler) findAllArduinoUnos() ([]string, error) {
 	var devicePaths []string
 
-	// Arduino SA Uno R3 has Vendor ID: 2341, 0043
-	devices, err := usb.Enumerate(2341, 0043)
+	// Arduino SA Uno R3 has Vendor ID: 0x2341, 0x0043
+	devices, err := usb.Enumerate(0x2341, 0x0043)
 	if err != nil {
 		return devicePaths, fmt.Errorf("error enumerating usb devices: %v", err)
 	}
