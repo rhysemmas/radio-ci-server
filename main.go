@@ -58,26 +58,36 @@ func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 
 	payload, err := github.ValidatePayload(r, h.token)
 	if err != nil {
-		log.Printf("error validating: %v", err)
+		log.Printf("error validating payload: %v", err)
 		return
 	}
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		log.Printf("error parsing: %v", err)
+		log.Printf("error parsing webhook: %v", err)
 		return
 	}
 
 	switch event := event.(type) {
 	case *github.CreateEvent:
-		h.event = event
-		if err := h.handleGitHubCreateEvent(); err != nil {
-			log.Printf("error handling github event: %v", err)
-		}
+		h.handleGithubCreateEvent(event)
 	}
 }
 
-func (h *handler) handleGitHubCreateEvent() error {
+func (h *handler) handleGithubCreateEvent(event *github.CreateEvent) {
+	h.event = event
+
+	if err := h.updateArduinoWithTaggedCode(); err != nil {
+		log.Printf("error updating arduino: %v", err)
+	}
+
+	log.Printf("cleaning up any downloaded files")
+	if err := h.cleanupDir(); err != nil {
+		log.Printf("error cleaning up dir %v: %v", h.workingDir, err)
+	}
+}
+
+func (h *handler) updateArduinoWithTaggedCode() error {
 	if *h.event.RefType != "tag" {
 		return fmt.Errorf("event not a tag, got ref: %v", *h.event.Ref)
 	}
@@ -92,11 +102,6 @@ func (h *handler) handleGitHubCreateEvent() error {
 		return fmt.Errorf("error flashing arduino: %v", err)
 	}
 	log.Print("done!")
-
-	log.Printf("cleaning up downloaded files")
-	if err := h.cleanupDir(); err != nil {
-		return fmt.Errorf("error cleaning up %v: %v", h.workingDir, err)
-	}
 
 	return nil
 }
@@ -120,7 +125,6 @@ func (h *handler) gitCloneAndCheckoutRef() error {
 	}
 
 	log.Printf("checking out ref: %v - sha: %v", ref.Name().String(), ref.Hash().String())
-
 	if err := workTree.Checkout(&git.CheckoutOptions{Hash: ref.Hash()}); err != nil {
 		return fmt.Errorf("error checking out to commit: %v", ref.Hash().String())
 	}
