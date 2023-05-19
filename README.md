@@ -9,6 +9,7 @@ You will need:
 * RPI running raspian
 * [Go](https://go.dev/doc/install) (version 1.18+)
 * [Pio](https://docs.platformio.org/en/latest/core/installation/shell-commands.html#piocore-install-shell-commands)
+* [libusb](https://github.com/libusb/libusb/wiki) `apt install libusb-1.0-0`
 
 ## install
 

@@ -157,49 +157,31 @@ func (h *handler) findAllArduinoUnos() ([]string, error) {
 	defer ctx.Close()
 
 	devs, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
-		fmt.Printf("%03d.%03d %s:%s\n", desc.Bus, desc.Address, desc.Vendor, desc.Product)
+		arduinoVendor := 0x2341
+		unoR3Product := 0x0043
 
-		// The configurations can be examined from the DeviceDesc, though they can only
-		// be set once the device is opened.  All configuration references must be closed,
-		// to free up the memory in libusb.
-		for _, cfg := range desc.Configs {
-			// This loop just uses more of the built-in and usbid pretty printing to list
-			// the USB devices.
-			fmt.Printf("  %s:\n", cfg)
-			for _, intf := range cfg.Interfaces {
-				fmt.Printf("    --------------\n")
-				for _, ifSetting := range intf.AltSettings {
-					fmt.Printf("    %s\n", ifSetting)
-					for _, end := range ifSetting.Endpoints {
-						fmt.Printf("      %s\n", end)
-					}
-				}
-			}
-			fmt.Printf("    --------------\n")
+		if desc.Vendor == gousb.ID(arduinoVendor) && desc.Product == gousb.ID(unoR3Product) {
+			return true
 		}
 
-		// After inspecting the descriptor, return true or false depending on whether
-		// the device is "interesting" or not.  Any descriptor for which true is returned
-		// opens a Device which is retuned in a slice (and must be subsequently closed).
 		return false
 	})
 
-	// All Devices returned from OpenDevices must be closed.
 	defer func() {
 		for _, d := range devs {
 			d.Close()
 		}
 	}()
 
-	// OpenDevices can occasionally fail, so be sure to check its return value.
 	if err != nil {
 		log.Fatalf("list: %s", err)
 	}
 
 	for _, dev := range devs {
-		// Once the device has been selected from OpenDevices, it is opened
-		// and can be interacted with.
-		fmt.Println(dev.Desc.Path)
+		log.Printf("vendor: %v\n", dev.Desc.Vendor.String())
+		log.Printf("product: %v\n", dev.Desc.Product.String())
+		log.Printf("path: %v\n", dev.Desc.Path)
+		log.Printf("port: %v\n", dev.Desc.Port)
 	}
 
 	return []string{}, fmt.Errorf("no devices found")
