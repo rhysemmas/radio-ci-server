@@ -20,7 +20,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "80"
 	}
 
 	workingDir := os.Getenv("WORKING_DIR")
