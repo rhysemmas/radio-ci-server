@@ -8,7 +8,6 @@ import (
 	"os/exec"
 
 	git "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v52/github"
 )
 
@@ -106,21 +105,21 @@ func (h *handler) gitCloneAndCheckoutRef() error {
 	repository, err := git.PlainClone(h.workingDir, false, &git.CloneOptions{
 		URL: "https://github.com/rhysemmas/arduino-lora",
 	})
-
 	if err != nil {
-		return fmt.Errorf("error cloning git repository: %v", err)
+		return fmt.Errorf("error cloning repository: %v", err)
 	}
 
-	log.Printf("getting reference from repository: %v", *h.event.Ref)
-	ref, err := repository.Reference(plumbing.ReferenceName(*h.event.Ref), false)
+	ref, err := repository.Tag(*h.event.Ref)
 	if err != nil {
-		return fmt.Errorf("error getting repository reference: %v", err)
+		return fmt.Errorf("error getting tag %v: %v", *h.event.Ref, err)
 	}
 
 	workTree, err := repository.Worktree()
 	if err != nil {
-		return fmt.Errorf("error getting repository worktree: %v", err)
+		return fmt.Errorf("erorr getting worktree: %v", err)
 	}
+
+	log.Printf("checking out ref: %v - sha: %v", ref.Name().String(), ref.Hash().String())
 
 	if err := workTree.Checkout(&git.CheckoutOptions{Hash: ref.Hash()}); err != nil {
 		return fmt.Errorf("error checking out to commit: %v", ref.Hash().String())
