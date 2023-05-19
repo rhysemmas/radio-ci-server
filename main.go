@@ -153,15 +153,20 @@ func (h *handler) flashArduinos() error {
 }
 
 func (h *handler) findAllArduinoUnos() ([]string, error) {
-	// Uno has Vendor ID: 0x2341, Product ID: 0x0001
-	devices, err := usb.Enumerate(0x2341, 0x0001)
+	var devicePaths []string
+
+	// Arduino SA Uno R3 has Vendor ID: 2341, 0043
+	devices, err := usb.Enumerate(2341, 0043)
 	if err != nil {
-		return []string{}, fmt.Errorf("error enumerating usb devices: %v", err)
+		return devicePaths, fmt.Errorf("error enumerating usb devices: %v", err)
 	}
 
-	var devicePaths []string
 	for _, device := range devices {
 		devicePaths = append(devicePaths, device.Path)
+	}
+
+	if len(devicePaths) == 0 {
+		return devicePaths, fmt.Errorf("no devices found")
 	}
 
 	return devicePaths, nil
