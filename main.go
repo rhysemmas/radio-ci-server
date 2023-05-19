@@ -72,31 +72,31 @@ func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	switch event := event.(type) {
 	case *github.CreateEvent:
 		h.event = event
-		h.handleGitHubCreateEvent()
+		if err := h.handleGitHubCreateEvent(); err != nil {
+			log.Printf("error handling github event: %v", err)
+		}
 	}
 }
 
-func (h *handler) handleGitHubCreateEvent() {
+func (h *handler) handleGitHubCreateEvent() error {
 	if *h.event.RefType != "tag" {
-		log.Printf("event not a tag, got ref: %v", *h.event.Ref)
-		return
+		return fmt.Errorf("event not a tag, got ref: %v", *h.event.Ref)
 	}
 
 	log.Printf("downloading version %v of arduino-lora", *h.event.Ref)
 	if err := h.gitCloneAndCheckoutRef(); err != nil {
-		log.Printf("error downloading code: %v", err)
+		return fmt.Errorf("error downloading code: %v", err)
 	}
 
 	log.Print("flashing arduino...")
 	if err := h.flashArduino(); err != nil {
-		log.Printf("error flashing arduino: %v", err)
-	} else {
-		log.Print("done!")
+		return fmt.Errorf("error flashing arduino: %v", err)
 	}
+	log.Print("done!")
 
 	log.Printf("cleaning up downloaded files")
 	if err := h.cleanupDir(); err != nil {
-		log.Printf("error cleaning up %v: %v", h.workingDir, err)
+		return fmt.Errorf("error cleaning up %v: %v", h.workingDir, err)
 	}
 }
 
@@ -109,7 +109,8 @@ func (h *handler) gitCloneAndCheckoutRef() error {
 		return fmt.Errorf("error cloning git repository: %v", err)
 	}
 
-	ref, err := repository.Reference(plumbing.ReferenceName(*h.event.Ref), true)
+	log.Printf("getting reference from repository: %v", *h.event.Ref)
+	ref, err := repository.Reference(plumbing.ReferenceName(*h.event.Ref), false)
 	if err != nil {
 		return fmt.Errorf("error getting repository reference: %v", err)
 	}
