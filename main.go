@@ -98,6 +98,8 @@ func (h *handler) handleGitHubCreateEvent() error {
 	if err := h.cleanupDir(); err != nil {
 		return fmt.Errorf("error cleaning up %v: %v", h.workingDir, err)
 	}
+
+	return nil
 }
 
 func (h *handler) gitCloneAndCheckoutRef() error {
