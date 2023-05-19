@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/google/go-github/v52 v52.0.0
-	github.com/karalabe/usb v0.0.2
+	github.com/google/gousb v1.1.2
 )
 
 require (

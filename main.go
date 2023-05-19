@@ -9,7 +9,7 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v52/github"
-	"github.com/karalabe/usb"
+	"github.com/google/gousb"
 )
 
 func main() {
@@ -153,23 +153,56 @@ func (h *handler) flashArduinos() error {
 }
 
 func (h *handler) findAllArduinoUnos() ([]string, error) {
-	var devicePaths []string
+	ctx := gousb.NewContext()
+	defer ctx.Close()
 
-	// Arduino SA Uno R3 has Vendor ID: 0x2341, 0x0043
-	devices, err := usb.Enumerate(0x2341, 0x0043)
+	devs, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
+		fmt.Printf("%03d.%03d %s:%s\n", desc.Bus, desc.Address, desc.Vendor, desc.Product)
+
+		// The configurations can be examined from the DeviceDesc, though they can only
+		// be set once the device is opened.  All configuration references must be closed,
+		// to free up the memory in libusb.
+		for _, cfg := range desc.Configs {
+			// This loop just uses more of the built-in and usbid pretty printing to list
+			// the USB devices.
+			fmt.Printf("  %s:\n", cfg)
+			for _, intf := range cfg.Interfaces {
+				fmt.Printf("    --------------\n")
+				for _, ifSetting := range intf.AltSettings {
+					fmt.Printf("    %s\n", ifSetting)
+					for _, end := range ifSetting.Endpoints {
+						fmt.Printf("      %s\n", end)
+					}
+				}
+			}
+			fmt.Printf("    --------------\n")
+		}
+
+		// After inspecting the descriptor, return true or false depending on whether
+		// the device is "interesting" or not.  Any descriptor for which true is returned
+		// opens a Device which is retuned in a slice (and must be subsequently closed).
+		return false
+	})
+
+	// All Devices returned from OpenDevices must be closed.
+	defer func() {
+		for _, d := range devs {
+			d.Close()
+		}
+	}()
+
+	// OpenDevices can occasionally fail, so be sure to check its return value.
 	if err != nil {
-		return devicePaths, fmt.Errorf("error enumerating usb devices: %v", err)
+		log.Fatalf("list: %s", err)
 	}
 
-	for _, device := range devices {
-		devicePaths = append(devicePaths, device.Path)
+	for _, dev := range devs {
+		// Once the device has been selected from OpenDevices, it is opened
+		// and can be interacted with.
+		fmt.Println(dev.Desc.Path)
 	}
 
-	if len(devicePaths) == 0 {
-		return devicePaths, fmt.Errorf("no devices found")
-	}
-
-	return devicePaths, nil
+	return []string{}, fmt.Errorf("no devices found")
 }
 
 func (h *handler) cleanupDir() error {
