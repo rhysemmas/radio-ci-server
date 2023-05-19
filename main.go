@@ -9,7 +9,7 @@ import (
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v52/github"
-	"github.com/google/gousb"
+	"go.bug.st/serial/enumerator"
 )
 
 func main() {
@@ -153,38 +153,26 @@ func (h *handler) flashArduinos() error {
 }
 
 func (h *handler) findAllArduinoUnos() ([]string, error) {
-	ctx := gousb.NewContext()
-	defer ctx.Close()
+	arduinoVendorID := "2341"
+	unoR3ProductID := "0043"
 
-	devs, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
-		arduinoVendor := 0x2341
-		unoR3Product := 0x0043
-
-		if desc.Vendor == gousb.ID(arduinoVendor) && desc.Product == gousb.ID(unoR3Product) {
-			return true
-		}
-
-		return false
-	})
-
-	defer func() {
-		for _, d := range devs {
-			d.Close()
-		}
-	}()
-
+	ports, err := enumerator.GetDetailedPortsList()
 	if err != nil {
-		log.Fatalf("list: %s", err)
+		return []string{}, fmt.Errorf("error getting list of serial ports: %v", err)
 	}
 
-	for _, dev := range devs {
-		log.Printf("vendor: %v\n", dev.Desc.Vendor.String())
-		log.Printf("product: %v\n", dev.Desc.Product.String())
-		log.Printf("path: %v\n", dev.Desc.Path)
-		log.Printf("port: %v\n", dev.Desc.Port)
+	var arduinoPorts []string
+	for _, port := range ports {
+		if port.IsUSB && port.VID == arduinoVendorID && port.PID == unoR3ProductID {
+			arduinoPorts = append(arduinoPorts, port.Name)
+		}
 	}
 
-	return []string{}, fmt.Errorf("no devices found")
+	if len(arduinoPorts) == 0 {
+		return []string{}, fmt.Errorf("no arduino serial ports found!")
+	}
+
+	return arduinoPorts, nil
 }
 
 func (h *handler) cleanupDir() error {

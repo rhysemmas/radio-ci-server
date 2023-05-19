@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/google/go-github/v52 v52.0.0
-	github.com/google/gousb v1.1.2
+	go.bug.st/serial v1.5.0
 )
 
 require (
@@ -13,6 +13,7 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/cloudflare/circl v1.1.0 // indirect
+	github.com/creack/goselect v0.1.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.4.1 // indirect
