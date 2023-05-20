@@ -55,7 +55,7 @@ func newHandler(token, workingDir string) handler {
 
 func (h *handler) slashHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	log.Printf("[%v] - %v - %v - %v", r.RemoteAddr, r.Method, r.URL.Path, r.UserAgent())
+	log.Printf("[%v - %v] - %v - %v - %v", r.RemoteAddr, r.Header.Get("X-Forwarded-For"), r.Method, r.URL.Path, r.UserAgent())
 
 	payload, err := github.ValidatePayload(r, h.token)
 	if err != nil {
